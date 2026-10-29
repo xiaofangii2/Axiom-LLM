@@ -20,6 +20,7 @@ Axiom-LLM 是一个专为资源受限环境（如 Termux、移动端 Android）�
 2. 纯手写 BPE 分词器：针对中文无空格和英文词根问题，项目内置了从头实现的 BPE 算法，无需安装 HuggingFace 的 tokenizers 库即可原生兼容中英双语混排。
 3. LLaMA 同源架构：采用了与当前主流大模型一致的现代架构，包括 RMSNorm 归一化、SwiGLU 激活函数以及因果多头自注意力机制。
 4. 工业级防爆机制：针对手机端浮点数溢出和 BLAS 内存回收异常，内置了全局梯度裁剪、NaN 强制清洗过滤以及防中断静默保存机制，确保训练绝对稳定。
+5. 终端交互 UI：内置基于 ANSI 真色彩的 TUI 启动器，支持全屏操作、版本管理、下载权重及一键启动。
 
 ## 模型架构解析
 
@@ -37,21 +38,28 @@ Axiom-LLM 采用 Decoder-Only 的 Transformer 架构，具体参数如下：
 ### 环境要求
 仅需 Python 环境及 PyTorch 基础包。在 Termux 等移动端环境建议设置 OPENBLAS_NUM_THREADS=1 以降低 CPU 负载和内存回收警告。
 
-### 1. 启动训练
-直接运行训练脚本。程序会自动生成数千条中英双语语料，构建 BPE 词表，并开启 3000 步的训练。在训练过程中随时按下 Ctrl+C 中断，程序会自动静默保存当前的模型权重并安全退出，绝对不报错。
+### 1. 一键启动 UI (推荐)
+在根目录下直接执行启动脚本，进入全屏终端交互界面：
+执行：./run.sh
+
+### 2. 手动启动训练
+直接运行训练脚本。程序会自动生成数千条中英双语语料，构建 BPE 词表，并开启 3000 步的训练。在训练过程中随时按下 Ctrl+C 中断，程序会自动静默保存当前的模型权重并安全退出。
 执行：python train.py
 
-### 2. 开始对话
-训练结束或中断后，会生成权重文件。运行对话脚本即可在终端开启交互。
+### 3. 手动开始对话
+训练结束或下载权重后，运行对话脚本即可在终端开启交互。
 执行：python chat.py
 输入 exit 退出对话。
 
 ## 目录结构说明
 
-model.py：模型核心文件，包含 RMSNorm、SwiGLU、Block 以及 AxiomLLM 的类定义。
-train.py：训练主程序，包含语料生成、BPE 训练、分词编码及优化器循环。
-chat.py：推理程序，负责加载 vocab.json 和 Axiom-LLM.pth 进行流式生成。
-.gitignore：配置了忽略大文件，防止数十 MB 的权重文件污染 Git 仓库。
+- assets/：终端 UI 相关脚本（包含 run.py）。
+- version/：存放不同版本的权重文件（默认结构为 version/axiom-llm-vX.X/）。
+- model.py：模型核心文件，包含 RMSNorm、SwiGLU、Block 以及 AxiomLLM 的类定义。
+- train.py：训练主程序，包含语料生成、BPE 训练、分词编码及优化器循环。
+- chat.py：推理程序，负责加载 vocab.json 和 axiom-llm.pth 进行流式生成。
+- run.sh：根目录入口脚本，负责调用 assets/run.py。
+- .gitignore：配置了忽略大文件，防止数十 MB 的权重文件污染 Git 仓库。
 
 ## 进阶玩法
 
