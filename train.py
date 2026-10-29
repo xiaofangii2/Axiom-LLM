@@ -99,7 +99,7 @@ data = torch.tensor(data_ids, dtype=torch.long)
 
 print("步骤 3/3: 开始训练...")
 model = AxiomLLM(V, d=128, h=4, L=4, T=32)
-opt = torch.optim.AdamW(model.parameters(), lr=1e-3, betas=(0.9, 0.95), weight_decay=0.01)
+opt = torch.optim.AdamW(model.parameters(), lr=1e-4, betas=(0.9, 0.95), weight_decay=0.01)
 steps = 3000
 T = model.T
 
@@ -112,7 +112,11 @@ for step in range(steps):
     opt.zero_grad()
     loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    for p in model.parameters():
+        if p.grad is not None:
+            p.grad = torch.nan_to_num(p.grad, nan=0.0, posinf=1.0, neginf=-1.0)
     opt.step()
+    if torch.isnan(loss): print("遇到 NaN，停止训练"); break
     if step % 100 == 0:
         print(f"step {step} loss {loss.item():.3f}", flush=True)
 
