@@ -3,20 +3,29 @@ import torch.nn.functional as F
 from model import AxiomLLM
 import json
 import sys
+import os
+
+# 如果 run.py 传了参数进来，就用指定的版本路径
+if len(sys.argv) >= 3:
+    MODEL_PATH = sys.argv[1]
+    VOCAB_PATH = sys.argv[2]
+else:
+    MODEL_PATH = "axiom-llm.pth"
+    VOCAB_PATH = "vocab.json"
 
 try:
-    with open("vocab.json", "r", encoding="utf-8") as f:
+    with open(VOCAB_PATH, "r", encoding="utf-8") as f:
         vocab = json.load(f)
         merges = {tuple(k.split("|")): v for k, v in vocab["merges"].items()}
         c2i = vocab["c2i"]
         i2c = {int(k): v for k, v in vocab["i2c"].items()}
 except FileNotFoundError:
-    print("找不到 vocab.json，请先运行 train.py")
+    print(f"找不到词表文件: {VOCAB_PATH}")
     sys.exit()
 
 V = len(c2i)
 model = AxiomLLM(V)
-model.load_state_dict(torch.load("Axiom-LLM.pth"))
+model.load_state_dict(torch.load(MODEL_PATH))
 model.eval()
 T = model.T
 
@@ -37,6 +46,7 @@ def encode(text):
 
 print("====================================")
 print(f"Axiom-LLM 已加载 | 词表: {V}")
+print(f"模型路径: {MODEL_PATH}")
 print("====================================")
 
 while True:
