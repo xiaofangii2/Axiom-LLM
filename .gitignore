@@ -1,3 +1,6 @@
 __pycache__/
+*.pyc
 *.pth
 vocab.json
+version/
+.current_version

@@ -12,12 +12,13 @@ COLOR_WARN = "\033[38;2;247;118;142m"
 COLOR_OK = "\033[38;2;158;206;106m"
 COLOR_INFO = "\033[38;2;125;207;255m"
 
-CURRENT_VER = "v0.1"
+# ========== 核心配置，全在这里 ==========
+CURRENT_VER = "v0.2"
 REMOTE_MODEL = "Axiom-LLM.pth"
 REMOTE_VOCAB = "Vocab.json"
-
 GITHUB_REPO = "xiaofangii2/Axiom-LLM"
 GITEE_REPO = "xiaofangii2/Axiom-LLM"
+# ========================================
 
 def get_key():
     fd = sys.stdin.fileno()
@@ -30,17 +31,17 @@ def get_key():
     return ch
 
 def get_versions():
-    # 扫描 version/ 下的所有 axiom-llm-v* 文件夹
     if not os.path.exists("version"):
         os.makedirs("version")
     return sorted(glob.glob("version/axiom-llm-v*"))
 
 def get_current_path():
-    # 获取当前选中的版本路径
+    if os.path.exists(".current_version"):
+        with open(".current_version", "r") as f:
+            path = f.read().strip()
+            if os.path.exists(path): return path
     vers = get_versions()
-    if not vers: return None
-    # 默认选第一个（如果没配置过）
-    return vers[0]
+    return vers[0] if vers else None
 
 def draw_base_box(start_x, start_y, box_width, box_height, title_str):
     def print_at(y, x, text, color=""):
@@ -62,7 +63,6 @@ def draw_menu(selected_idx, btn_idx):
     def print_at(y, x, text, color=""):
         sys.stdout.write(f"\033[{y};{x}H{color}{text}{RESET}{BG_APP}")
         
-    # 显示当前版本
     cur_ver = get_current_path()
     ver_name = os.path.basename(cur_ver) if cur_ver else "无"
     print_at(start_y + 2, start_x + 4, f"当前版本: {ver_name}", COLOR_INFO)
@@ -145,13 +145,16 @@ def do_download(source):
     sys.stdout.write("\033[?1049l\033[?25h" + RESET)
     os.system('clear')
     
-    # 创建版本目录
     ver_dir = f"version/axiom-llm-{CURRENT_VER}"
     os.makedirs(ver_dir, exist_ok=True)
     
-    base_url = f"https://github.com/{GITHUB_REPO}" if source == "github" else f"https://gitee.com/{GITEE_REPO}"
-    url_model = f"{base_url}/releases/latest/download/{REMOTE_MODEL}"
-    url_vocab = f"{base_url}/releases/latest/download/{REMOTE_VOCAB}"
+    if source == "github":
+        base_url = f"https://github.com/{GITHUB_REPO}"
+    else:
+        base_url = f"https://gitee.com/{GITEE_REPO}"
+        
+    url_model = f"{base_url}/releases/download/{CURRENT_VER}/{REMOTE_MODEL}"
+    url_vocab = f"{base_url}/releases/download/{CURRENT_VER}/{REMOTE_VOCAB}"
     
     print(f"\n{COLOR_INFO}正在从 {source.capitalize()} 下载...{RESET}\n")
     try:
@@ -162,6 +165,7 @@ def do_download(source):
         print(f"\n{COLOR_OK}下载成功！已存入 {ver_dir}{RESET}")
     except Exception as e:
         print(f"\n{COLOR_WARN}下载失败: {e}{RESET}")
+        print("提示: 请确保 Releases 里有对应版本和附件。")
     input(f"\n{COLOR_INFO}按回车返回菜单...{RESET}")
     sys.stdout.write("\033[?1049h\033[?25l")
 
@@ -169,7 +173,6 @@ def main():
     sys.stdout.write("\033[?1049h\033[?25l\033[H\033[2J")
     sys.stdout.flush()
     
-    # 用于记住当前选中的版本索引
     main_idx, main_btn = 0, 0
     wl_idx = 0
     
@@ -193,16 +196,13 @@ def main():
                         sys.stdout.write("\033[?1049h\033[?25l")
                     else:
                         sys.stdout.write("\033[?1049l\033[?25h" + RESET)
-                        # 传参给 chat.py
-                        subprocess.run(["python", "chat.py", os.path.join(cur_ver, "axiom-llm.pth"), os.path.join(cur_ver, "vocab.json")])
-                        input(f"\n{COLOR_INFO}按回车返回菜单...{RESET}")
-                        sys.stdout.write("\033[?1049h\033[?25l")
+                        sys.stdout.flush()
+                        os.execvp("python", ["python", "chat.py", os.path.join(cur_ver, "axiom-llm.pth"), os.path.join(cur_ver, "vocab.json")])
                         
                 elif main_idx == 1:
                     sys.stdout.write("\033[?1049l\033[?25h" + RESET)
-                    subprocess.run(["python", "train.py"])
-                    input(f"\n{COLOR_INFO}按回车返回菜单...{RESET}")
-                    sys.stdout.write("\033[?1049h\033[?25l")
+                    sys.stdout.flush()
+                    os.execvp("python", ["python", "train.py"])
                     
                 elif main_idx == 2:
                     dl_idx = 0
@@ -228,14 +228,6 @@ def main():
                         elif wl_key == '\x1b[B' and vers:
                             wl_idx = (wl_idx + 1) % len(vers)
                         elif wl_key in ('\r', '\n') and vers:
-                            # 切换版本：这里我们只是简单地把选中的放到最前面（修改排序逻辑）
-                            # 或者修改一个全局变量记录当前路径
-                            # 为了代码简洁，我们直接动态把选中的版本重命名或者利用 os.utime 使其排最前
-                            # 其实最简单的做法是直接依赖 get_current_path() 的返回值，
-                            # 但是 get_current_path() 现在返回的是 vers[0]。
-                            # 所以我们可以在这里直接把选中的版本的 mtime 更新，或者干脆用一个本地文件记录。
-                            # 为了简单，我这里不写文件了，直接调整列表顺序传给全局（但是主循环每次重扫）
-                            # 最稳妥：写入一个 .current 文件
                             with open(".current_version", "w") as f:
                                 f.write(vers[wl_idx])
                             break
@@ -251,13 +243,4 @@ def main():
         sys.stdout.flush()
 
 if __name__ == "__main__":
-    # 覆盖 get_current_path 以支持读取配置文件
-    def get_current_path_real():
-        if os.path.exists(".current_version"):
-            with open(".current_version", "r") as f:
-                path = f.read().strip()
-                if os.path.exists(path): return path
-        vers = get_versions()
-        return vers[0] if vers else None
-    get_current_path = get_current_path_real
     main()

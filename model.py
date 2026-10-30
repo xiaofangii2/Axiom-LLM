@@ -36,7 +36,7 @@ class Block(nn.Module):
         return x
 
 class AxiomLLM(nn.Module):
-    def __init__(self, vocab_size, d=128, h=4, L=4, T=32):
+    def __init__(self, vocab_size, d=160, h=4, L=6, T=32):
         super().__init__()
         self.T = T
         self.emb = nn.Embedding(vocab_size, d)
